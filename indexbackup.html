@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Invoice Processing</title>
+  <!-- Bootstrap CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+  <!-- Anime.js -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+  <style>
+    body {
+      margin: 10px; /* Add margin to the whole page */
+      position: relative;
+      overflow-y: scroll; /* Enable vertical scrolling */
+      background-color: #f0f0f0; /* Ultra light gray color */
+    }
+
+    .loader {
+      width: 100%;
+      height: 50px; /* Increased height */
+      border-radius: 5px;
+      background-color: #f3f3f3;
+      display: none;
+      margin-top: 10px;
+      position: relative;
+    }
+
+    .printing-label {
+      font-weight: bold;
+      font-size: 16px;
+      color: #3498db;
+      position: absolute;
+      top: 50%;
+      left: 10%;
+      transform: translateY(-50%);
+    }
+
+    .circle-loader {
+      width: 20px;
+      height: 20px;
+      border: 3px solid #3498db;
+      border-radius: 50%;
+      border-top-color: transparent;
+      animation: spin 1s linear infinite; /* Animation for spinning loader */
+      position: absolute;
+      top: 50%; /* Position in the middle of the loader */
+      left: 80%; /* Position beside the label */
+      transform: translateY(-50%);
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    #rearmButton {
+      margin-top: 10px;
+      display: none; /* Hide the buttons initially */
+    }
+
+    #rearmButton:disabled {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+
+    #printedInvoices {
+      margin: auto; /* Center the table */
+      max-width: 100%; /* Ensure the table fits on the display */
+      display: none; /* Hide the table initially */
+    }
+
+    /* Button animation */
+    .btn {
+      transition: transform 0.3s ease-in-out;
+    }
+
+    .btn:hover {
+      transform: scale(1.05);
+    }
+  </style>
+</head>
+<body>
+  <h1 id="pageTitle">Invoice Processing</h1>
+
+  <form id="processForm" action="/start-printing" method="POST">
+    <button type="submit" id="printButton" class="btn btn-primary">Process Invoices</button>
+  </form>
+
+  <button id="rearmButton" class="btn btn-warning" disabled>Rearm</button>
+
+  <div id="loader" class="loader">
+    <div class="printing-label">Printing... <div class="circle-loader"></div></div> <!-- Printing label with circle loader -->
+  </div>
+
+  <div id="status"></div>
+  <div id="printedInvoices" class="table-responsive">
+    <table id="invoicesTable" class="table">
+      <thead>
+        <tr>
+          <th>Invoice ID</th>
+          <th>Customer Name</th>
+          <th>Amount</th>
+          <th>File Path</th>
+        </tr>
+      </thead>
+      <tbody>
+        <!-- Table body content will be dynamically added here -->
+      </tbody>
+    </table>
+  </div>
+  
+  <!-- jQuery -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+  <!-- Bootstrap JS -->
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+  
+  <script>
+    $(document).ready(function() {
+      // Animate page title
+      anime({
+        targets: '#pageTitle',
+        translateY: [-50, 0],
+        opacity: [0, 1],
+        duration: 1000,
+        easing: 'easeOutQuad'
+      });
+
+      // Animate buttons
+      anime({
+        targets: '.btn',
+        translateY: [50, 0],
+        opacity: [0, 1],
+        delay: anime.stagger(100), // Add stagger effect
+        duration: 1000,
+        easing: 'easeOutQuad'
+      });
+
+      $('#processForm').submit(async function(event) {
+        event.preventDefault();
+
+        try {
+          $('#loader').show(); // Show loader
+          $('.printing-label').addClass('printing-animation'); // Add printing animation class
+          $('#printButton').prop('disabled', true).hide(); // Disable and hide print button
+          $('#rearmButton').hide(); // Hide rearm button
+
+          const response = await fetch('/start-printing', {
+            method: 'POST',
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to process invoices');
+          }
+
+          const data = await response.json();
+          $('#status').text(data.message);
+          updatePrintedInvoices();
+        } catch (error) {
+          console.error('Error processing invoices:', error);
+          $('#status').text('Error processing invoices');
+        } finally {
+          $('#loader').hide(); // Hide loader
+          $('#rearmButton').prop('disabled', false).show(); // Show and enable rearm button
+        }
+      });
+
+      async function updatePrintedInvoices() {
+        try {
+          const response = await fetch('/printed-invoices');
+          if (!response.ok) {
+            throw new Error('Failed to fetch printed invoices');
+          }
+          const data = await response.json();
+          const tbody = $('#invoicesTable tbody');
+          tbody.empty(); // Clear existing table data
+          data.forEach(invoice => {
+            const row = $('<tr>');
+            Object.values(invoice).forEach(value => {
+              $('<td>').text(value).appendTo(row);
+            });
+            row.appendTo(tbody);
+          });
+          exportInvoicesToHTML();
+          $('#printedInvoices').show(); // Show the table
+        } catch (error) {
+          console.error('Error fetching printed invoices:', error);
+        }
+      }
+
+      function exportInvoicesToHTML() {
+        // Logic to export invoices to HTML file
+        const tableHTML = $('#printedInvoices').html();
+        const blob = new Blob([tableHTML], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'printed_invoices.html';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+
+      $('#rearmButton').click(function() {
+        location.reload(); // Reload the page
+      });
+    });
+  </script>
+</body>
+</html>

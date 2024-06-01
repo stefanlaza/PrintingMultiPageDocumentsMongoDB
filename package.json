@@ -1,0 +1,20 @@
+{
+  "name": "BRVprintapp",
+  "version": "0.0.1",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "npx nodemon index.js -w server"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.19.2",
+    "htmx.org": "^1.9.11",
+    "jspdf": "^2.3.1",
+    "mongodb": "^5.7.0",
+    "node-fetch": "^2.6.1",
+    "pdf-lib": "^1.17.1"
+  }
+}
